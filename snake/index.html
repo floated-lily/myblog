@@ -1,0 +1,303 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>Js贪吃蛇代码</title>
+<style type="text/css">
+*{ margin:0; padding:0;}
+body{ overflow:hidden;}
+#contentBox{margin:50px auto 10px; background:#eee; width:421px; height:421px; border-collapse:collapse;}
+#contentBox tr td{ width:20px; height:20px; border:1px #ccc solid;}
+.snakeflag{ background:#666;}
+.eatFood{ background:red;}
+.controlArea{ width:420px; margin:0px auto;}
+#controlBtn{ width:70px; height:34px;font-weight:bold; font-size:24px;}
+.levelArea,.scoreArea{ margin-left:50px;}
+</style>
+</head>
+<body>
+<table id="contentBox">
+<tbody></tbody>
+</table>
+<div class="controlArea">
+	<button id="controlBtn" title="可按回车键开始游戏">开始</button>
+    <span class="levelArea">
+    	<strong>Level：</strong>
+    	<select id="level">
+        	<option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+            <option value="6">6</option>
+            <option value="7">7</option>
+            <option value="8">8</option>
+            <option value="9">9</option>
+            <option value="10">10</option>
+        </select>
+    </span>
+    <span class="scoreArea">
+    	<strong>当前分数：</strong>
+    	<span id="score">0</span>
+    </span>
+</div>
+<script src="../js/jquery.min.js"></script>
+<script type="text/javascript">
+var snakeThis=null;
+var $=function(element){
+	return 	typeof element=="string"?document.getElementById(element):element;
+}
+var create=function(name){
+	var node=document.createElement(name);
+	return node;
+}
+function Snake(){
+	this.init.apply(this,arguments);	
+}
+Snake.prototype={
+	//表格行数
+	tableRow:20,
+	//表格行数
+	tableCol:20,
+	//初始方向
+	dir:1,
+	//初始之前方向
+	preDir:1,
+	//速度
+	speed:400,
+	//存储蛇尾方向的数组，数组长度=蛇的长度
+	preDirAry:[],
+	//存储间歇调用的变量
+	auto:null,
+	//分数元素
+	score:$('score'),
+	//级别元素
+	level:$('level'),
+	//初始化方法
+	init:function(tableId,beginBtn,score,level){
+		var table=$(tableId).getElementsByTagName('tbody')[0],btn=$(beginBtn);
+		this._createTable(table);
+		this._initGame(table);
+		this._eatLocation(table);
+		this._directionControl(table);
+		this._beginGame(table,btn);
+	},
+	//创建表格
+	_createTable:function(table){
+		for(var i=0,len=this.tableCol;i<len;i++){
+			var tr=document.createElement('tr');
+			for(var j=0,len2=this.tableRow;j<len2;j++){
+				var td=document.createElement('td');
+				tr.appendChild(td);
+			}
+		table.appendChild(tr);
+		}
+	},
+	//初始化游戏数据
+	_initGame:function(table){
+		jQuery(table).find('tr').each(function(index){
+			index<5?jQuery(this).find('td:eq(0)').addClass('snakeflag'):null;
+			index==0?jQuery(this).find('td:eq(0)').addClass('last'):null;
+			index==4?jQuery(this).find('td:eq(0)').addClass('first'):null;
+		});
+		for(var i=0;i<5;i++){
+			this.preDirAry.push(this.dir);
+		}
+	},
+	//确定食物坐标
+	_eatLocation:function(table){
+		if(snakeThis==null){
+			snakeThis=this;
+		}
+		
+		var loa=snakeThis._createRandom();
+		if(snakeThis._isHasSnakeFlag(table,loa)){
+			arguments.callee(table);
+		}else{
+			jQuery(table).find('tr').eq(loa[0]).find('td').eq(loa[1]).addClass('eatFood');
+			snakeThis=null;
+		}
+	},
+	//获取食物随机位置
+	_createRandom:function(){
+		var x=20,y=20;
+		x=parseInt(Math.random()*x);
+		y=parseInt(Math.random()*y);
+		return [x,y];
+	},
+	//判断食物是否和蛇的位置冲突
+	_isHasSnakeFlag:function(table,array){
+		
+		var flag=true;
+		jQuery(table).find('.snakeflag').each(function(index){
+			if(jQuery(this)[0]==jQuery(table).find('tr').eq(array[0]).find('td').eq(array[1])[0]){
+				flag=false;
+			}
+		});
+		if(!flag){
+			return true;
+		}else{
+			return false;	
+		}
+	},
+	//蛇自动移动
+	_sankeMove:function(table,dir){
+		//dir 方向 0-上 1-下 2-左 3-右
+		var _this=this;
+		
+		this.auto=setInterval(function(){
+			var len=jQuery('.snakeflag').length;
+			var first=jQuery('.first');
+			var last=jQuery('.last');
+			var next=_this._SnakeHeadNextLocation(table,_this.dir);
+			//按相反方向键，蛇照常行走
+			if(_this.preDir+_this.dir==1||_this.preDir+_this.dir==5){
+				_this.dir=_this.preDir;
+				var next2=_this._SnakeHeadNextLocation(table,_this.dir);
+				var pre2=_this._SnakeTailNextLocation(table,_this.dir);
+				jQuery(table).find('tr').eq(next2[0]).find('td').eq(next2[1]).addClass('snakeflag first');
+				jQuery(table).find('tr').eq(pre2[0]).find('td').eq(pre2[1]).addClass('last');
+				first.removeClass('first');
+				last.removeClass('last').removeClass('snakeflag');
+				return false;
+			}
+			//判断是否Game Over
+			if(!_this._isGameOver(table,next,_this.dir)){
+				return false;	
+			};
+			//判断是否吃到食物数
+			if(_this._snakeEatFood(table,_this.dir)){
+				_this._getScore();
+				return false;
+			}
+			var pre=_this._SnakeTailNextLocation(table,_this.dir);
+			jQuery(table).find('tr').eq(next[0]).find('td').eq(next[1]).addClass('snakeflag first');
+			jQuery(table).find('tr').eq(pre[0]).find('td').eq(pre[1]).addClass('last');
+			first.removeClass('first');
+			last.removeClass('last').removeClass('snakeflag');
+			_this.preDir=_this.dir;
+		},_this.speed);
+	},
+	//计算蛇头的下一个位置
+	_SnakeHeadNextLocation:function(table,dir){
+		var node=jQuery('.first')[0];
+		var loa=this._tdLocation(table,node);
+		if(dir==0){
+			loa=[loa[0]-1,loa[1]];
+		}else if(dir==1){
+			loa=[loa[0]+1,loa[1]];
+		}else if(dir==2){
+			loa=[loa[0],loa[1]-1];
+		}else if(dir==3){
+			loa=[loa[0],loa[1]+1];
+		}
+		return loa;
+	},
+	//计算蛇尾下一个位置
+	_SnakeTailNextLocation:function(table,dir){
+		var node=jQuery('.last')[0];
+		this.preDirAry.shift();
+		this.preDirAry.push(dir);
+		var loa=this._tdLocation(table,node);
+		var predir=this.preDirAry[0];
+		if(predir==0){
+			loa=[loa[0]-1,loa[1]];
+		}else if(predir==1){
+			loa=[loa[0]+1,loa[1]];
+		}else if(predir==2){
+			loa=[loa[0],loa[1]-1];
+		}else if(predir==3){
+			loa=[loa[0],loa[1]+1];
+		}
+		
+		return loa;
+	},
+	//计算任意一个td的坐标
+	_tdLocation:function(table,td){
+		var array=[];
+		
+		jQuery(table).find('tr').each(function(index){
+			var x=index;
+			jQuery(this).find('td').each(function(index){
+				var y=index;
+				if(jQuery(this)[0]==td){
+					array=[x,y];
+					return false;
+				}
+			});
+		});
+		return array;
+	},
+	//方向控制
+	_directionControl:function(table){
+		var _this=this;
+		document.body.onkeydown=function(event){
+			var e=event||window.event;
+			if(e.keyCode==38){
+				_this.dir=0;
+			}else if(e.keyCode==40){
+				_this.dir=1;
+			}else if(e.keyCode==37){
+				_this.dir=2;
+			}else if(e.keyCode==39){
+				_this.dir=3;
+			}
+		}
+	},
+	//是否Game Over
+	_isGameOver:function(table,first,dir){
+		var node=jQuery(table).find('tr').eq(first[0]).find('td').eq(first[1]);
+		if((first[0]>=this.tableRow&&dir==1)||(first[0]<0&&dir==0)||(first[1]>=this.tableRow&&dir==3)||(first[1]<0&&dir==2)||node.hasClass('snakeflag')){
+			clearInterval(this.auto);
+			alert("Game Over"+"\n"+"您的难度为Level "+this.level.value+"\n"+"您的最后得分："+this.score.innerHTML);
+			return false;
+		}else{
+			return true;	
+		}
+	},
+	//蛇吃食物
+	_snakeEatFood:function(table,dir){
+		var next=this._SnakeHeadNextLocation(table,dir);
+		var node=jQuery(table).find('tr').eq(next[0]).find('td').eq(next[1]);
+		if(node.hasClass('eatFood')){
+			jQuery('.first').removeClass('first');
+			jQuery('.eatFood').addClass('snakeflag first').removeClass('eatFood');
+			this.preDirAry.push(dir);
+			this._eatLocation(table);
+			return true;
+			
+		}else{
+			return false;	
+		}
+	},
+	//蛇吃到食物分数增加
+	_getScore:function(){
+		var scoreNode=this.score,levelNode=this.level;
+		scoreNode.innerHTML=parseInt(scoreNode.innerHTML)+100;
+	},
+	//开始游戏
+	_beginGame:function(table,beginBtn){
+		var _this=this,level=this.level;
+		beginBtn.onclick=function(){
+			_this.speed=600/level.value;
+			_this._sankeMove(table,1);
+			beginBtn.style.color="#aaa";
+			this.onclick=null;
+			document.body.onkeyup=null;
+		}
+		document.body.onkeyup=function(event){
+			var e=event||window.event;
+			if(e.keyCode==13){
+				_this.speed=600/level.value;
+				_this._sankeMove(table,1);
+				beginBtn.style.color="#aaa";
+				beginBtn.onclick=null;
+				this.onkeyup=null;
+			}
+		}
+	}
+}
+new Snake('contentBox','controlBtn');
+</script>
+</body>
+</html>
